@@ -46,3 +46,7 @@ O endereco, a porta, o nome do banco e o usuario ja estao preenchidos com os dad
 - **SELECT:** busca registros.
 - **UPDATE:** altera registros.
 - **DELETE:** remove registros.
+
+## Documento tecnico
+
+O PDF do projeto esta na pasta documentacao/Documento Tecnico Cafe Comanda.pdf.
