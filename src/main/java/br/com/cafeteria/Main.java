@@ -3,15 +3,20 @@ package br.com.cafeteria;
 import java.sql.*;
 import java.util.Scanner;
 public class Main {
-    private static final String ENDERECO = "jdbc:postgresql://aws-1-us-east-1.pooler.supabase.com:5432/postgres?sslmode=require";
-    private static final String USUARIO_BANCO = "postgres.alhwkrvkausblvbfhfgv";
-    private static final String SENHA_BANCO = "COLOQUE_A_SENHA_DO_BANCO_AQUI";
+    private static final String ENDERECO = System.getenv("SUPABASE_DB_URL");
+    private static final String USUARIO_BANCO = System.getenv("SUPABASE_DB_USER");
+    private static final String SENHA_BANCO = System.getenv("SUPABASE_DB_PASSWORD");
 
     private static final Scanner teclado = new Scanner(System.in);
     private static Connection conexao;
     private static int idUsuarioLogado;
 
     public static void main(String[] args) {
+        if (ENDERECO == null || ENDERECO.isBlank() || USUARIO_BANCO == null || USUARIO_BANCO.isBlank() ||
+                SENHA_BANCO == null || SENHA_BANCO.isBlank()) {
+            System.out.println("Defina SUPABASE_DB_URL, SUPABASE_DB_USER e SUPABASE_DB_PASSWORD nas variaveis de ambiente do IntelliJ.");
+            return;
+        }
         try {
             // Abre a conexao com o banco.
             conexao = DriverManager.getConnection(ENDERECO, USUARIO_BANCO, SENHA_BANCO);
@@ -120,8 +125,8 @@ public class Main {
         int opcao;
         do {
             System.out.println("\n--- COMANDAS ---");
-            System.out.println("1 - Abrir comanda\n2 - Alterar cliente e mesa\n3 - Fechar comanda");
-            System.out.println("4 - Excluir comanda\n5 - Buscar pelo codigo\n6 - Listar comandas\n0 - Voltar");
+            System.out.println("1 - Abrir comanda\n2 - Alterar cliente e mesa\n3 - Mostrar total da comanda");
+            System.out.println("4 - Fechar comanda\n5 - Excluir comanda\n6 - Buscar pelo codigo\n7 - Listar comandas\n0 - Voltar");
             opcao = lerNumero("Escolha: ");
 
             if (opcao == 1) {
@@ -135,15 +140,18 @@ public class Main {
                 int mesa = lerNumero("Nova mesa: ");
                 executar("UPDATE comandas SET cliente = ?, mesa = ? WHERE id_comanda = ?", cliente, mesa, id);
             } else if (opcao == 3) {
+                int id = lerNumero("Codigo da comanda: ");
+                imprimirComanda(id);
+            } else if (opcao == 4) {
                 int id = lerNumero("Codigo da comanda para fechar: ");
                 executar("UPDATE comandas SET status = 'FECHADA' WHERE id_comanda = ?", id);
-            } else if (opcao == 4) {
+            } else if (opcao == 5) {
                 int id = lerNumero("Codigo da comanda para excluir: ");
                 executar("DELETE FROM comandas WHERE id_comanda = ?", id);
-            } else if (opcao == 5) {
+            } else if (opcao == 6) {
                 int id = lerNumero("Codigo da comanda: ");
                 mostrarConsulta("SELECT * FROM comandas WHERE id_comanda = ?", id);
-            } else if (opcao == 6) {
+            } else if (opcao == 7) {
                 mostrarConsulta("SELECT * FROM comandas ORDER BY id_comanda DESC");
             }
         } while (opcao != 0);
@@ -255,9 +263,20 @@ public class Main {
                 "WHERE i.id_comanda = ?";
         mostrarConsulta(sql, idComanda);
 
-        String sqlTotal = "SELECT COALESCE(SUM(quantidade * preco_unitario), 0) AS total " +
+        mostrarTotalComanda(idComanda);
+    }
+
+    // Mostra somente o total a pagar antes de fechar a comanda.
+    private static void mostrarTotalComanda(int idComanda) throws SQLException {
+        String sql = "SELECT COALESCE(SUM(quantidade * preco_unitario), 0) AS total " +
                 "FROM itens_comanda WHERE id_comanda = ?";
-        mostrarConsulta(sqlTotal, idComanda);
+        try (PreparedStatement consulta = conexao.prepareStatement(sql)) {
+            consulta.setInt(1, idComanda);
+            try (ResultSet resultado = consulta.executeQuery()) {
+                resultado.next();
+                System.out.printf("Total da comanda %d: R$ %.2f%n", idComanda, resultado.getDouble("total"));
+            }
+        }
     }
 
     // Executa INSERT, UPDATE ou DELETE. Cada ? recebe um valor da lista.
@@ -322,4 +341,5 @@ public class Main {
             return lerPreco(pergunta);
         }
     }
+
 }
